@@ -2,6 +2,10 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from sklearn.metrics import mean_squared_log_error
+from sklearn.linear_model import LinearRegression
+
+pd.options.mode.chained_assignment = None
 
 train = pd.read_csv('train.csv')
 test = pd.read_csv('test.csv')
@@ -62,4 +66,54 @@ data_set['KitchenQual'].replace({'Ex':5,'Gd':4,'TA':3,'Fa':2,'Po':1},inplace=Tru
 data_set['Functional'].replace({'Typ':8,'Min1':7,'Min2':6,'Mod':5,'Maj1':4,'Maj2':3,'Sev':2,'Sal':1},inplace=True)
 data_set['FireplaceQu'].replace({'Ex':5,'Gd':4,'TA':3,'Fa':2,'Po':1},inplace=True)
 data_set['FireplaceQu'].fillna(0,inplace=True)
+data_set['GarageType'].replace({'BuiltIn':6,'Attchd':5,'Basment':4,'2Types':3,'Detchd':2,'CarPort':1},inplace=True)
+data_set['GarageType'].fillna(0,inplace=True)
+data_set['GarageFinish'].replace({'Fin':3,'RFn':2,'Unf':1},inplace=True)
+data_set['GarageFinish'].fillna(0,inplace=True)
+data_set['GarageQual'].replace({'Ex':5,'Gd':4,'TA':3,'Fa':2,'Po':1},inplace=True)
+data_set['GarageQual'].fillna(0,inplace=True)
+data_set['GarageCond'].replace({'Ex':5,'Gd':4,'TA':3,'Fa':2,'Po':1},inplace=True)
+data_set['GarageCond'].fillna(0,inplace=True)
+data_set['PavedDrive'].replace({'Y':3,'P':2,'N':1},inplace=True)
+data_set['SaleType'].replace({'VWD':10,'New':9,'Con':8,'CWD':7,'ConLI':6,'WD':5,'COD':4,'ConLw':3,'ConLD':2,'Oth':1},inplace=True)
+data_set['SaleCondition'].replace({'Partial':6,'Normal':5,'Alloca':4,'Family':3,'Abnorml':2,'AdjLand':1},inplace=True)
 
+data_set = data_set.drop(['Street','Utilities','Condition2','RoofMatl','Heating','LowQualFinSF','3SsnPorch','PoolArea'], axis=1)
+data_set = data_set.drop([249,313,335,378,581,691,706,934,1061,1182,1190,1298])
+
+data_set.fillna(0,inplace=True) #!!!!!!!!!!!!!!!!!!!!!! change
+
+data_set_tr = data_set.iloc[0:1251,1:68]
+data_set_tr_label = data_set.iloc[0:1251,68]
+
+data_set_te = data_set.iloc[1251:1448,1:68]
+data_set_te_label = data_set.iloc[1251:1448,68]
+
+data_set_predict = data_set.loc[data_set['is_train'] == False]
+
+features = ['LotArea','BsmtFinSF1','BsmtFinSF2','2ndFlrSF','WoodDeckSF','OpenPorchSF','EnclosedPorch','ScreenPorch','MiscVal']
+
+data_set_tr[features] = (data_set_tr[features]-data_set_tr[features].min())/(data_set_tr[features].max()-data_set_tr[features].min())
+data_set_te[features] = (data_set_te[features]-data_set_te[features].min())/(data_set_te[features].max()-data_set_te[features].min())
+data_set_predict[features] = (data_set_predict[features]-data_set_predict[features].min())/(data_set_predict[features].max()-data_set_predict[features].min())
+
+data_set_tr['ones'] = 1
+
+w_hat = data_set_tr.T.dot(data_set_tr)+ 0.01*np.eye(68)
+w_hat = pd.DataFrame(np.linalg.pinv(w_hat.values), w_hat.columns, w_hat.index)
+w_hat = w_hat.T.dot(data_set_tr.T.dot(data_set_tr_label))
+
+w = w_hat[0:67]
+b = w_hat[67]
+
+Y = w.T.dot(data_set_te.T) + b
+
+RMSLE = np.sqrt(mean_squared_log_error(data_set_te_label,Y))
+error = np.linalg.norm(data_set_te_label-Y)/np.linalg.norm(data_set_te_label)
+
+# model = LinearRegression()
+# model.fit(data_set_tr,data_set_tr_label)
+
+# predictions = model.predict(data_set_te)
+
+# error = np.linalg.norm(data_set_te_label-predictions)/np.linalg.norm(data_set_te_label)
