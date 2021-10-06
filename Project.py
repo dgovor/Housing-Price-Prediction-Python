@@ -2,8 +2,14 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from scipy.sparse import data
+import seaborn as sns
 from sklearn.metrics import mean_squared_log_error
 from sklearn.linear_model import LinearRegression
+from xgboost import XGBRegressor
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn import metrics
 
 pd.options.mode.chained_assignment = None
 
@@ -13,6 +19,7 @@ train['is_train']  = True
 test['is_train'] = False
 
 data_set = pd.concat([train, test], axis=0,sort=False)
+data_set.reset_index(drop=True, inplace=True)
 
 missing = data_set.isna().sum()*100/data_set.shape[0]
 missing = missing[missing > 50]
@@ -81,39 +88,61 @@ data_set['SaleCondition'].replace({'Partial':6,'Normal':5,'Alloca':4,'Family':3,
 data_set = data_set.drop(['Street','Utilities','Condition2','RoofMatl','Heating','LowQualFinSF','3SsnPorch','PoolArea'], axis=1)
 data_set = data_set.drop([249,313,335,378,581,691,706,934,1061,1182,1190,1298])
 
+missing_val = data_set.isna().sum()
+
+# Find correlation between the features
+# correlation = data_set.corr()
+# plt.figure(figsize=(10,10))
+# sns.heatmap(correlation, cbar=True, square=True, fmt='.1f', cmap='Blues')
+
 data_set.fillna(0,inplace=True) #!!!!!!!!!!!!!!!!!!!!!! change
 
-data_set_tr = data_set.iloc[0:1251,1:68]
-data_set_tr_label = data_set.iloc[0:1251,68]
-
-data_set_te = data_set.iloc[1251:1448,1:68]
-data_set_te_label = data_set.iloc[1251:1448,68]
-
 data_set_predict = data_set.loc[data_set['is_train'] == False]
+data_set_predict = data_set_predict.drop(['Id','is_train','SalePrice'],axis=1)
+data_set = data_set.loc[data_set['is_train'] == True]
+X = data_set.drop(['Id','is_train','SalePrice'],axis=1)
+Y = data_set['SalePrice']
 
-features = ['LotArea','BsmtFinSF1','BsmtFinSF2','2ndFlrSF','WoodDeckSF','OpenPorchSF','EnclosedPorch','ScreenPorch','MiscVal']
+X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.20, random_state=34)
 
-data_set_tr[features] = (data_set_tr[features]-data_set_tr[features].min())/(data_set_tr[features].max()-data_set_tr[features].min())
-data_set_te[features] = (data_set_te[features]-data_set_te[features].min())/(data_set_te[features].max()-data_set_te[features].min())
-data_set_predict[features] = (data_set_predict[features]-data_set_predict[features].min())/(data_set_predict[features].max()-data_set_predict[features].min())
+scaler = StandardScaler()
+scaler.fit(X_train)
 
-data_set_tr['ones'] = 1
+X_train = scaler.transform(X_train)
+X_test = scaler.transform(X_test)
+data_set_predict = scaler.transform(data_set_predict)
 
-w_hat = data_set_tr.T.dot(data_set_tr)+ 0.01*np.eye(68)
-w_hat = pd.DataFrame(np.linalg.pinv(w_hat.values), w_hat.columns, w_hat.index)
-w_hat = w_hat.T.dot(data_set_tr.T.dot(data_set_tr_label))
+# features = ['LotArea','BsmtFinSF1','BsmtFinSF2','2ndFlrSF','WoodDeckSF','OpenPorchSF','EnclosedPorch','ScreenPorch','MiscVal']
 
-w = w_hat[0:67]
-b = w_hat[67]
+# X_train[features] = (X_train[features]-X_train[features].min())/(X_train[features].max()-X_train[features].min())
+# X_test[features] = (X_test[features]-X_test[features].min())/(X_test[features].max()-X_test[features].min())
+# data_set_predict[features] = (data_set_predict[features]-data_set_predict[features].min())/(data_set_predict[features].max()-data_set_predict[features].min())
 
-Y = w.T.dot(data_set_te.T) + b
+# X_train['ones'] = 1
 
-RMSLE = np.sqrt(mean_squared_log_error(data_set_te_label,Y))
-error = np.linalg.norm(data_set_te_label-Y)/np.linalg.norm(data_set_te_label)
+# w_hat = X_train.T.dot(X_train)+ 0.01*np.eye(68)
+# w_hat = pd.DataFrame(np.linalg.pinv(w_hat.values), w_hat.columns, w_hat.index)
+# w_hat = w_hat.T.dot(X_train.T.dot(Y_train))
 
-# model = LinearRegression()
-# model.fit(data_set_tr,data_set_tr_label)
+# w = w_hat[0:67]
+# b = w_hat[67]
 
-# predictions = model.predict(data_set_te)
+# predictions = w.T.dot(X_test.T) + b
 
-# error = np.linalg.norm(data_set_te_label-predictions)/np.linalg.norm(data_set_te_label)
+# RMSLE = np.sqrt(mean_squared_log_error(Y_test,predictions))
+# error = np.linalg.norm(Y_test-predictions)/np.linalg.norm(Y_test)
+
+model = XGBRegressor()
+model.fit(X_train,Y_train)
+
+predictions = model.predict(X_test)
+
+error = metrics.mean_absolute_percentage_error(Y_test, predictions)
+
+output_pred = pd.DataFrame(model.predict(data_set_predict))
+
+output = pd.DataFrame()
+output['Id'] = test['Id']
+output['SalePrice'] = output_pred
+
+output.to_csv('submission.csv',index=False)
