@@ -146,3 +146,9 @@ output['Id'] = test['Id']
 output['SalePrice'] = output_pred
 
 output.to_csv('submission.csv',index=False)
+
+plt.scatter(predictions,Y_test)
+plt.xlabel('Predicted Price')
+plt.ylabel('Actual Price')
+plt.title('House Price Prediction')
+plt.show()
