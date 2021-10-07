@@ -95,7 +95,11 @@ missing_val = data_set.isna().sum()
 # plt.figure(figsize=(10,10))
 # sns.heatmap(correlation, cbar=True, square=True, fmt='.1f', cmap='Blues')
 
-data_set.fillna(0,inplace=True) #!!!!!!!!!!!!!!!!!!!!!! change
+data_set['LotFrontage'].fillna(data_set['LotFrontage'].min(),inplace=True)
+data_set['MasVnrType'].fillna(0,inplace=True)
+data_set['MasVnrArea'].fillna(0,inplace=True)
+data_set['GarageYrBlt'].fillna(0,inplace=True)
+data_set.fillna(0,inplace=True)
 
 data_set_predict = data_set.loc[data_set['is_train'] == False]
 data_set_predict = data_set_predict.drop(['Id','is_train','SalePrice'],axis=1)
@@ -103,7 +107,7 @@ data_set = data_set.loc[data_set['is_train'] == True]
 X = data_set.drop(['Id','is_train','SalePrice'],axis=1)
 Y = data_set['SalePrice']
 
-X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.20, random_state=34)
+X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.20, random_state=7)
 
 scaler = StandardScaler()
 scaler.fit(X_train)
@@ -112,34 +116,20 @@ X_train = scaler.transform(X_train)
 X_test = scaler.transform(X_test)
 data_set_predict = scaler.transform(data_set_predict)
 
-# features = ['LotArea','BsmtFinSF1','BsmtFinSF2','2ndFlrSF','WoodDeckSF','OpenPorchSF','EnclosedPorch','ScreenPorch','MiscVal']
+model1 = XGBRegressor(learning_rate=0.1, subsample=0.71, random_state=4, n_estimators=500)
+model1.fit(X_train,Y_train)
 
-# X_train[features] = (X_train[features]-X_train[features].min())/(X_train[features].max()-X_train[features].min())
-# X_test[features] = (X_test[features]-X_test[features].min())/(X_test[features].max()-X_test[features].min())
-# data_set_predict[features] = (data_set_predict[features]-data_set_predict[features].min())/(data_set_predict[features].max()-data_set_predict[features].min())
+predictions1 = model1.predict(X_test)
 
-# X_train['ones'] = 1
+model2 = LinearRegression()
+model2.fit(X_train,Y_train)
+predictions2 = model2.predict(X_test)
 
-# w_hat = X_train.T.dot(X_train)+ 0.01*np.eye(68)
-# w_hat = pd.DataFrame(np.linalg.pinv(w_hat.values), w_hat.columns, w_hat.index)
-# w_hat = w_hat.T.dot(X_train.T.dot(Y_train))
-
-# w = w_hat[0:67]
-# b = w_hat[67]
-
-# predictions = w.T.dot(X_test.T) + b
-
-# RMSLE = np.sqrt(mean_squared_log_error(Y_test,predictions))
-# error = np.linalg.norm(Y_test-predictions)/np.linalg.norm(Y_test)
-
-model = XGBRegressor()
-model.fit(X_train,Y_train)
-
-predictions = model.predict(X_test)
+predictions = predictions1*0.8 + predictions2*0.2
 
 error = metrics.mean_absolute_percentage_error(Y_test, predictions)
 
-output_pred = pd.DataFrame(model.predict(data_set_predict))
+output_pred = model1.predict(data_set_predict)*0.8 + model2.predict(data_set_predict)*0.2
 
 output = pd.DataFrame()
 output['Id'] = test['Id']
@@ -147,7 +137,8 @@ output['SalePrice'] = output_pred
 
 output.to_csv('submission.csv',index=False)
 
-plt.scatter(predictions,Y_test)
+plt.scatter(predictions, Y_test, alpha=0.5)
+plt.plot([Y_test.min(), Y_test.max()], [Y_test.min(), Y_test.max()], '--r', linewidth=2)
 plt.xlabel('Predicted Price')
 plt.ylabel('Actual Price')
 plt.title('House Price Prediction')
