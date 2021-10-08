@@ -7,6 +7,8 @@ import seaborn as sns
 from sklearn.metrics import mean_squared_log_error
 from sklearn.linear_model import LinearRegression
 from xgboost import XGBRegressor
+from lightgbm import LGBMRegressor
+from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn import metrics
@@ -125,11 +127,19 @@ model2 = LinearRegression()
 model2.fit(X_train,Y_train)
 predictions2 = model2.predict(X_test)
 
-predictions = predictions1*0.8 + predictions2*0.2
+model3 = GradientBoostingRegressor(learning_rate=0.1)
+model3.fit(X_train,Y_train)
+predictions3 = model3.predict(X_test)
+
+model4 = LGBMRegressor(learning_rate=0.1)
+model4.fit(X_train,Y_train)
+predictions4 = model4.predict(X_test)
+
+predictions = predictions1*0.3 + predictions2*0.2 + predictions3*0.15 + predictions4*0.35
 
 error = metrics.mean_absolute_percentage_error(Y_test, predictions)
 
-output_pred = model1.predict(data_set_predict)*0.8 + model2.predict(data_set_predict)*0.2
+output_pred = model1.predict(data_set_predict)*0.3 + model2.predict(data_set_predict)*0.2 + model3.predict(data_set_predict)*0.15 + model4.predict(data_set_predict)*0.35
 
 output = pd.DataFrame()
 output['Id'] = test['Id']
