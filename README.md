@@ -18,8 +18,8 @@ Data preprocessing consists of the following steps:
 * The features are sorted so it would be possible to describe them linearly;
 * Some features with very low variance are deleted;
 * Outliers are deleted;
-* All missing values are found and changed to either 0 or most frequent values of the features that contain these missing values, wherever it makes sence;
-* The data is normalized, where necessary.
+* All missing values are found and handled;
+* The data is normalized.
 
 ## Linear Regression
 
