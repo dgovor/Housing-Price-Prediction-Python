@@ -150,7 +150,7 @@ predictions = predictions1*0.3 + predictions2*0.2 + predictions3*0.15 + predicti
 # Mean absolute percentage error.
 error = metrics.mean_absolute_percentage_error(Y_test, predictions)
 
-# The predictions for Kaggle challenge.
+# The predictions for Kaggle challenge are calculated following the same ensemble.
 output_pred = model1.predict(data_set_predict)*0.3 + model2.predict(data_set_predict)*0.2 + model3.predict(data_set_predict)*0.15 + model4.predict(data_set_predict)*0.35
 
 output = pd.DataFrame()
