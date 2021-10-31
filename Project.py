@@ -2,7 +2,6 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from scipy.sparse import data
 import seaborn as sns
 from sklearn.metrics import mean_squared_log_error
 from sklearn.linear_model import LinearRegression
@@ -13,22 +12,28 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn import metrics
 
-pd.options.mode.chained_assignment = None
-
 train = pd.read_csv('train.csv')
 test = pd.read_csv('test.csv')
+
+# A new feature 'is_train' is created to simplify our work with the datasets.
 train['is_train']  = True
 test['is_train'] = False
 
+# Both datasets are combined together in order to perform data preprocessing.
 data_set = pd.concat([train, test], axis=0,sort=False)
 data_set.reset_index(drop=True, inplace=True)
 
+# Find all features that have 50% or more of missing values.
 missing = data_set.isna().sum()*100/data_set.shape[0]
 missing = missing[missing > 50]
 
+# Drop these features since they do not carry a valuable insight.
 for i in range(0,missing.shape[0]):
     data_set = data_set.drop([missing.index[i]],axis=1)
-    
+
+# Next lines (35-91) are used to encode all categorical features into numeric ones.
+# First, numeric values are assigned in numerical order. Later, we rearange these values 
+# in the way so it would be easier to describe them linearly.
 data_set['MSZoning'].replace({'A':6,'C (all)':1,'FV':5,'I':7,'RH':3,'RL':4,'RP':8,'RM':2},inplace=True)
 data_set['Street'].replace({'Grvl':1,'Pave':2},inplace=True)
 data_set['LotShape'].replace({'Reg':1,'IR1':2,'IR2':4,'IR3':3},inplace=True)
@@ -87,30 +92,34 @@ data_set['PavedDrive'].replace({'Y':3,'P':2,'N':1},inplace=True)
 data_set['SaleType'].replace({'VWD':10,'New':9,'Con':8,'CWD':7,'ConLI':6,'WD':5,'COD':4,'ConLw':3,'ConLD':2,'Oth':1},inplace=True)
 data_set['SaleCondition'].replace({'Partial':6,'Normal':5,'Alloca':4,'Family':3,'Abnorml':2,'AdjLand':1},inplace=True)
 
+# Analysis of the dataset shows that certain features can be disregarded due to their low variance.
 data_set = data_set.drop(['Street','Utilities','Condition2','RoofMatl','Heating','LowQualFinSF','3SsnPorch','PoolArea'], axis=1)
+# Some of the data samples did not follow the same patern, and therefore, were classified as outliers.
 data_set = data_set.drop([249,313,335,378,581,691,706,934,1061,1182,1190,1298])
 
+# Find the remaining missing values.
 missing_val = data_set.isna().sum()
 
-# Find correlation between the features
-# correlation = data_set.corr()
-# plt.figure(figsize=(10,10))
-# sns.heatmap(correlation, cbar=True, square=True, fmt='.1f', cmap='Blues')
+data_set['LotFrontage'].fillna(data_set['LotFrontage'].min(),inplace=True) # Missing values of 'LotFrontage' are changed to the min value of this feature.
+data_set.fillna(0,inplace=True) # The rest of the missing values are changed to zeros.
 
-data_set['LotFrontage'].fillna(data_set['LotFrontage'].min(),inplace=True)
-data_set['MasVnrType'].fillna(0,inplace=True)
-data_set['MasVnrArea'].fillna(0,inplace=True)
-data_set['GarageYrBlt'].fillna(0,inplace=True)
-data_set.fillna(0,inplace=True)
-
+# The data is split into training and challenge data.
 data_set_predict = data_set.loc[data_set['is_train'] == False]
 data_set_predict = data_set_predict.drop(['Id','is_train','SalePrice'],axis=1)
 data_set = data_set.loc[data_set['is_train'] == True]
+
+# Find correlation between the features.
+# correlation = data_set.corr()
+# plt.figure(figsize=(10,10))
+# sns.heatmap(correlation, cbar=True, square=True, cmap='Blues')
+
 X = data_set.drop(['Id','is_train','SalePrice'],axis=1)
 Y = data_set['SalePrice']
 
+# The dataset is split into training (80%) and testing (20%) subsets.
 X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.20, random_state=7)
 
+# The data is being normalized based on the training subset.
 scaler = StandardScaler()
 scaler.fit(X_train)
 
@@ -118,27 +127,30 @@ X_train = scaler.transform(X_train)
 X_test = scaler.transform(X_test)
 data_set_predict = scaler.transform(data_set_predict)
 
+# The predictions are calculated on the basis of four different models.
 model1 = XGBRegressor(learning_rate=0.1, subsample=0.71, random_state=4, n_estimators=500)
 model1.fit(X_train,Y_train)
-
 predictions1 = model1.predict(X_test)
 
 model2 = LinearRegression()
 model2.fit(X_train,Y_train)
 predictions2 = model2.predict(X_test)
 
-model3 = GradientBoostingRegressor(learning_rate=0.1)
+model3 = GradientBoostingRegressor(learning_rate=0.1, random_state=4)
 model3.fit(X_train,Y_train)
 predictions3 = model3.predict(X_test)
 
-model4 = LGBMRegressor(learning_rate=0.1)
+model4 = LGBMRegressor(learning_rate=0.1, random_state=4)
 model4.fit(X_train,Y_train)
 predictions4 = model4.predict(X_test)
 
+# The final predictions are calculated based on the following ensemble of the models.
 predictions = predictions1*0.3 + predictions2*0.2 + predictions3*0.15 + predictions4*0.35
 
+# Mean absolute percentage error.
 error = metrics.mean_absolute_percentage_error(Y_test, predictions)
 
+# The predictions for Kaggle challenge.
 output_pred = model1.predict(data_set_predict)*0.3 + model2.predict(data_set_predict)*0.2 + model3.predict(data_set_predict)*0.15 + model4.predict(data_set_predict)*0.35
 
 output = pd.DataFrame()
