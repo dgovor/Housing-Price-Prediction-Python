@@ -1,4 +1,4 @@
-# Housing-Price-Prediction-MATLAB
+# Housing-Price-Prediction-Python
 Machine Learning (ML) model for price prediction using a combination of Linear Regression, Gradient Boosting Regression, XGBoost Regressor, and LGBM Regressor.
 
 ## Description
